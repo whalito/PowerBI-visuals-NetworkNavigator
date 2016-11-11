@@ -21,13 +21,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-
 import { NetworkNavigator as NetworkNavigatorImpl } from "../NetworkNavigator";
-import { INetworkNavigatorData, INetworkNavigatorLink, INetworkNavigatorNode } from "../models";
+import { INetworkNavigatorNode } from "../models";
 import * as CONSTANTS from "../constants";
 import { INetworkNavigatorSelectableNode, INetworkNavigatorVisualSettings } from "./models";
-import { VisualBase, Visual, updateTypeGetter, UpdateType } from "essex.powerbi.base";
-import IVisual = powerbi.IVisual;
+import { Visual, UpdateType } from "essex.powerbi.base";
 import IVisualHostServices = powerbi.IVisualHostServices;
 import VisualCapabilities = powerbi.VisualCapabilities;
 import VisualInitOptions = powerbi.VisualInitOptions;
@@ -36,9 +34,11 @@ import IInteractivityService = powerbi.visuals.IInteractivityService;
 import InteractivityService = powerbi.visuals.InteractivityService;
 import VisualObjectInstance = powerbi.VisualObjectInstance;
 import EnumerateVisualObjectInstancesOptions = powerbi.EnumerateVisualObjectInstancesOptions;
-import DataView = powerbi.DataView;
 import SelectionId = powerbi.visuals.SelectionId;
 import utility = powerbi.visuals.utility;
+import NetworkNavigatorVisualState from "./state";
+import { StatefulVisual } from "pbi-stateful";
+import convert from "./convert";
 
 /* tslint:disable */
 const MY_CSS_MODULE = require("!css!sass!./css/NetworkNavigatorVisual.scss");
@@ -54,14 +54,14 @@ import capabilities from "./capabilities";
 declare var _: any;
 
 @Visual(require("../build").output.PowerBI)
-export default class NetworkNavigator extends VisualBase implements IVisual {
+export default class NetworkNavigator extends StatefulVisual<NetworkNavigatorVisualState> {
 
     public static capabilities: VisualCapabilities = capabilities;
-
     private myNetworkNavigator: NetworkNavigatorImpl;
     private host: IVisualHostServices;
     private interactivityService: IInteractivityService;
     private listener: { destroy: Function; };
+    private _internalState: NetworkNavigatorVisualState;
 
     /**
      * The selection manager
@@ -69,11 +69,6 @@ export default class NetworkNavigator extends VisualBase implements IVisual {
     private selectionManager: utility.SelectionManager;
 
     private settings: INetworkNavigatorVisualSettings = $.extend(true, {}, DEFAULT_SETTINGS);
-
-    /**
-     * Getter for the update type
-     */
-    private updateType = updateTypeGetter(this);
 
     /**
      * Gets called when a node is selected
@@ -120,122 +115,6 @@ export default class NetworkNavigator extends VisualBase implements IVisual {
     }, 100);
 
     /**
-     * Converts the data view into an internal data structure
-     */
-    public static converter(
-        dataView: DataView,
-        settings: INetworkNavigatorVisualSettings): INetworkNavigatorData<INetworkNavigatorSelectableNode> {
-        let nodeList: INetworkNavigatorSelectableNode[] = [];
-        let nodeMap: { [name: string] : INetworkNavigatorSelectableNode } = {};
-        let linkList: INetworkNavigatorLink[] = [];
-        let table = dataView.table;
-
-        let colMap = {};
-        table.columns.forEach((c, i) => {
-            Object.keys(c.roles).forEach(role => {
-                colMap[role] = i;
-            });
-        });
-
-        // group defines the bundle basically
-        // name, user friendly name,
-        // num, size of circle, probably meant to be the number of matches
-        // source - array index into nodes
-        // target - array index into node
-        // value - The number of times that the link has been made, ie, I emailed bob@gmail.com 10 times, so value would be 10
-
-        let roles = DATA_ROLES;
-        let sourceIdx = colMap[roles.source.name];
-        let sourceColorIdx = colMap[roles.sourceColor.name];
-        let sourceLabelColorIdx = colMap[roles.sourceLabelColor.name];
-        // let sourceGroup = colMap[roles.sourceGroup.name];
-        // let targetGroupIdx = colMap[roles.targetGroup.name];
-        let targetColorIdx = colMap[roles.targetColor.name];
-        let targetLabelColorIdx = colMap[roles.targetLabelColor.name];
-        let targetIdx = colMap[roles.target.name];
-        const edgeValueIdx = colMap[roles.edgeValue.name];
-        const sourceNodeWeightIdx = colMap[roles.sourceNodeWeight.name];
-        const targetNodeWeightIdx = colMap[roles.targetNodeWeight.name];
-
-        let sourceField = table.identityFields[sourceIdx];
-        let targetField = table.identityFields[targetIdx];
-
-        // Can't do nuffin' without source an target fields
-        if (sourceField && targetField) {
-            const getNode = (
-                id: string,
-                identity: powerbi.DataViewScopeIdentity,
-                isSource: boolean,
-                nodeWeight: number,
-                color: string = "gray",
-                labelColor: string,
-                group: number = 0) => {
-                const field = (isSource ? sourceField : targetField);
-                let node = nodeMap[id];
-                let expr = powerbi.data.SQExprBuilder.equal(field as powerbi.data.SQExpr, powerbi.data.SQExprBuilder.text(id));
-
-                if (!nodeMap[id]) {
-                    node = nodeMap[id] = {
-                        name: id,
-                        color: color || "gray",
-                        labelColor: labelColor,
-                        index: nodeList.length,
-                        filterExpr: expr,
-                        value: nodeWeight,
-                        neighbors: 1,
-                        selected: false,
-                        identity: SelectionId.createWithId(powerbi.data.createDataViewScopeIdentity(expr)),
-                    };
-                    nodeList.push(node);
-                }
-                return node as INetworkNavigatorSelectableNode;
-            };
-
-            table.rows.forEach((row, idx) => {
-                let identity = table.identity[idx];
-                if (row[sourceIdx] && row[targetIdx]) {
-                    /** These need to be strings to work properly */
-                    let sourceId = row[sourceIdx] + "";
-                    let targetId = row[targetIdx] + "";
-                    let edge = {
-                        source:
-                            getNode(sourceId,
-                                    identity,
-                                    true,
-                                    row[sourceNodeWeightIdx],
-                                    row[sourceColorIdx],
-                                    row[sourceLabelColorIdx]/*,
-                                    row[sourceGroup]*/).index,
-                        target:
-                            getNode(targetId,
-                                    identity,
-                                    false,
-                                    row[targetNodeWeightIdx],
-                                    row[targetColorIdx],
-                                    row[targetLabelColorIdx]/*, 
-                                    row[targetGroupIdx]*/).index,
-                        value: row[edgeValueIdx],
-                    };
-                    nodeList[edge.source].neighbors += 1;
-                    nodeList[edge.target].neighbors += 1;
-                    linkList.push(edge);
-                }
-            });
-
-            const maxNodes = settings.layout.maxNodeCount;
-            if (typeof maxNodes === "number" && maxNodes > 0) {
-                nodeList = nodeList.slice(0, maxNodes);
-                linkList = linkList.filter(n => n.source < maxNodes && n.target < maxNodes);
-            }
-        }
-
-        return {
-            nodes: nodeList,
-            links: linkList,
-        };
-    }
-
-    /**
      * Constructor for the network navigator
      */
     constructor(noCss = false) {
@@ -245,6 +124,22 @@ export default class NetworkNavigator extends VisualBase implements IVisual {
         if (className) {
             this.element.addClass(className);
         }
+
+        this._internalState = NetworkNavigatorVisualState.create();
+    }
+
+    public generateState() {
+        return this._internalState.toJSONObject();
+    }
+
+    public onSetState(state: NetworkNavigatorVisualState) {
+        if (state) {
+            this._internalState = this._internalState.receive(state);
+        }
+    }
+
+    public getCustomCssModules(): string[] {
+        return [MY_CSS_MODULE];
     }
 
     /**
@@ -255,9 +150,7 @@ export default class NetworkNavigator extends VisualBase implements IVisual {
     }
 
     /** This is called once when the visual is initialially created */
-    public init(options: VisualInitOptions): void {
-        super.init(options);
-
+    public onInit(options: VisualInitOptions): void {
         this.myNetworkNavigator = new NetworkNavigatorImpl(this.element.find("#node_graph"), 500, 500);
         this.host = options.host;
         this.interactivityService = new InteractivityService(this.host);
@@ -266,14 +159,11 @@ export default class NetworkNavigator extends VisualBase implements IVisual {
     }
 
     /** Update is called for data updates, resizes & formatting changes */
-    public update(options: VisualUpdateOptions) {
-        super.update(options);
-
+    public onUpdate(options: VisualUpdateOptions, type: UpdateType) {
         let dataView = options.dataViews && options.dataViews.length && options.dataViews[0];
         let dataViewTable = dataView && dataView.table;
         let forceReloadData = false;
 
-        const type = this.updateType();
         if (type & UpdateType.Settings) {
             forceReloadData = this.updateSettings(options);
         }
@@ -283,7 +173,7 @@ export default class NetworkNavigator extends VisualBase implements IVisual {
         }
         if (type & UpdateType.Data || forceReloadData) {
             if (dataViewTable) {
-                const newData = NetworkNavigator.converter(dataView, this.settings);
+                const newData = convert(dataView, this.settings);
                 this.myNetworkNavigator.setData(newData);
             } else {
                 this.myNetworkNavigator.setData({
@@ -345,13 +235,6 @@ export default class NetworkNavigator extends VisualBase implements IVisual {
             instances[0].properties["textSize"] = this.myNetworkNavigator.configuration.fontSizePT;
         }
         return instances as VisualObjectInstance[];
-    }
-
-    /**
-     * Gets the inline css used for this element
-     */
-    protected getCss(): string[] {
-        return (super.getCss() || []).concat([MY_CSS_MODULE]);
     }
 
     /**
