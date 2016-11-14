@@ -21,24 +21,22 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 import { NetworkNavigator as NetworkNavigatorImpl } from "../NetworkNavigator";
 import { INetworkNavigatorNode } from "../models";
 import * as CONSTANTS from "../constants";
 import { INetworkNavigatorSelectableNode, INetworkNavigatorVisualSettings } from "./models";
-import { Visual, UpdateType } from "essex.powerbi.base";
+import { VisualBase, Visual, updateTypeGetter, UpdateType } from "essex.powerbi.base";
+import converter from "./dataConversion";
+import IVisual = powerbi.IVisual;
 import IVisualHostServices = powerbi.IVisualHostServices;
 import VisualCapabilities = powerbi.VisualCapabilities;
 import VisualInitOptions = powerbi.VisualInitOptions;
 import VisualUpdateOptions = powerbi.VisualUpdateOptions;
-import IInteractivityService = powerbi.visuals.IInteractivityService;
-import InteractivityService = powerbi.visuals.InteractivityService;
 import VisualObjectInstance = powerbi.VisualObjectInstance;
 import EnumerateVisualObjectInstancesOptions = powerbi.EnumerateVisualObjectInstancesOptions;
 import SelectionId = powerbi.visuals.SelectionId;
 import utility = powerbi.visuals.utility;
-import NetworkNavigatorVisualState from "./state";
-import { StatefulVisual } from "pbi-stateful";
-import convert from "./convert";
 
 /* tslint:disable */
 const MY_CSS_MODULE = require("!css!sass!./css/NetworkNavigatorVisual.scss");
@@ -54,24 +52,45 @@ import capabilities from "./capabilities";
 declare var _: any;
 
 @Visual(require("../build").output.PowerBI)
-export default class NetworkNavigator extends StatefulVisual<NetworkNavigatorVisualState> {
-
-    public static capabilities: VisualCapabilities = capabilities;
-    private myNetworkNavigator: NetworkNavigatorImpl;
-    private host: IVisualHostServices;
-    private interactivityService: IInteractivityService;
-    private listener: { destroy: Function; };
-    private _internalState: NetworkNavigatorVisualState;
+export default class NetworkNavigator extends VisualBase implements IVisual {
 
     /**
-     * The selection manager
+     * The capabilities of the Visual
+     */
+    public static capabilities: VisualCapabilities = capabilities;
+
+    /**
+     * My network navigator instance
+     */
+    public myNetworkNavigator: NetworkNavigatorImpl;
+
+    /**
+     * The visual's host
+     */
+    private host: IVisualHostServices;
+
+    /**
+     * The selection changed listener for NetworkNavigator
+     */
+    private selectionChangedListener: { destroy: Function; };
+
+    /**
+     * The selection manager, used to sync selection with PowerBI
      */
     private selectionManager: utility.SelectionManager;
 
+    /**
+     * The current set of settings synchronized with powerbi
+     */
     private settings: INetworkNavigatorVisualSettings = $.extend(true, {}, DEFAULT_SETTINGS);
 
     /**
-     * Gets called when a node is selected
+     * Getter for the update type
+     */
+    private updateType = updateTypeGetter(this);
+
+    /**
+     * A debounced event listener for when a node is selected through NetworkNavigator
      */
     private onNodeSelected = _.debounce((node: INetworkNavigatorSelectableNode) => {
         /* tslint:disable */
@@ -114,32 +133,17 @@ export default class NetworkNavigator extends StatefulVisual<NetworkNavigatorVis
         this.host.persistProperties(objects);
     }, 100);
 
-    /**
+    /*
      * Constructor for the network navigator
      */
     constructor(noCss = false) {
         super("NetworkNavigator", noCss);
 
+        // Some of the css is in a css module (:local() {....}), this adds the auto generated class to our element
         const className = MY_CSS_MODULE && MY_CSS_MODULE.locals && MY_CSS_MODULE.locals.className;
         if (className) {
             this.element.addClass(className);
         }
-
-        this._internalState = NetworkNavigatorVisualState.create();
-    }
-
-    public generateState() {
-        return this._internalState.toJSONObject();
-    }
-
-    public onSetState(state: NetworkNavigatorVisualState) {
-        if (state) {
-            this._internalState = this._internalState.receive(state);
-        }
-    }
-
-    public getCustomCssModules(): string[] {
-        return [MY_CSS_MODULE];
     }
 
     /**
@@ -149,31 +153,44 @@ export default class NetworkNavigator extends StatefulVisual<NetworkNavigatorVis
         return `<div id="node_graph" style= "height: 100%;"> </div>`;
     }
 
-    /** This is called once when the visual is initialially created */
-    public onInit(options: VisualInitOptions): void {
+    /** 
+     * This is called once when the visual is initialially created 
+     */
+    public init(options: VisualInitOptions): void {
+        super.init(options);
+
         this.myNetworkNavigator = new NetworkNavigatorImpl(this.element.find("#node_graph"), 500, 500);
         this.host = options.host;
-        this.interactivityService = new InteractivityService(this.host);
         this.attachEvents();
         this.selectionManager = new utility.SelectionManager({ hostServices: this.host });
     }
 
-    /** Update is called for data updates, resizes & formatting changes */
-    public onUpdate(options: VisualUpdateOptions, type: UpdateType) {
+    /** 
+     * Update is called for data updates, resizes & formatting changes 
+     */
+    public update(options: VisualUpdateOptions) {
+        super.update(options);
+
         let dataView = options.dataViews && options.dataViews.length && options.dataViews[0];
         let dataViewTable = dataView && dataView.table;
         let forceReloadData = false;
 
+        // Some settings have been updated
+        const type = this.updateType();
         if (type & UpdateType.Settings) {
-            forceReloadData = this.updateSettings(options);
+            forceReloadData = this.loadSettingsFromPowerBI(dataView);
         }
+
+        // The visual has been resized
         if (type & UpdateType.Resize) {
             this.myNetworkNavigator.dimensions = { width: options.viewport.width, height: options.viewport.height };
             this.element.css({ width: options.viewport.width, height: options.viewport.height });
         }
+
+        // The dataset has been modified, or something has happened that requires us to force reload the data
         if (type & UpdateType.Data || forceReloadData) {
             if (dataViewTable) {
-                const newData = convert(dataView, this.settings);
+                const newData = converter(dataView, this.settings);
                 this.myNetworkNavigator.setData(newData);
             } else {
                 this.myNetworkNavigator.setData({
@@ -183,9 +200,63 @@ export default class NetworkNavigator extends StatefulVisual<NetworkNavigatorVis
             }
         }
 
+        this.loadSelectionFromPowerBI();
+
+        this.myNetworkNavigator.redrawLabels();
+    }
+
+    /**
+     * Enumerates the instances for the objects (settings) that appear in the power bi panel
+     */
+    public enumerateObjectInstances(options: EnumerateVisualObjectInstancesOptions): VisualObjectInstance[] {
+        let instances = super.enumerateObjectInstances(options) || [{
+            /* tslint:disable */
+            selector: null,
+            /* tslint:enable */
+            objectName: options.objectName,
+            properties: {},
+        }, ];
+
+        // Layout needs to be handled specially, cause we need to clamp the values to our min/maxes
+        if (options.objectName === "layout") {
+            const { layout } = this.settings;
+            // autoClamp
+            Object.keys(layout).forEach((name: string) => {
+                if (CONSTANTS[name]) {
+                    const { min, max } = CONSTANTS[name];
+                    const value = layout[name];
+                    layout[name] = Math.min(max, Math.max(min, value));
+                }
+            });
+        }
+
+        // Since the structure for our settings reflects those in the capabilities, then just copy them into
+        // the final object
+        $.extend(true, instances[0].properties, this.settings[options.objectName]);
+
+        if (options.objectName === "general") {
+            instances[0].properties["textSize"] = this.myNetworkNavigator.configuration.fontSizePT;
+        }
+        return instances as VisualObjectInstance[];
+    }
+
+    /**
+     * Gets the inline css used for this element
+     */
+    protected getCss(): string[] {
+        return (super.getCss() || []).concat([MY_CSS_MODULE]);
+    }
+
+    /**
+     * Loads the selection state from powerbi
+     */
+    private loadSelectionFromPowerBI() {
         const data = this.myNetworkNavigator.getData();
         const nodes = data && data.nodes;
         const selectedIds = this.selectionManager.getSelectionIds();
+
+        // For each of the nodes, check to see if their ids are in the selection manager, and
+        // mark them as selected
         if (nodes && nodes.length) {
             let updated = false;
             nodes.forEach((n) => {
@@ -201,55 +272,21 @@ export default class NetworkNavigator extends StatefulVisual<NetworkNavigatorVis
                 this.myNetworkNavigator.redrawSelection();
             }
         }
-
-        this.myNetworkNavigator.redrawLabels();
-    }
-
-    /**
-     * Enumerates the instances for the objects that appear in the power bi panel
-     */
-    public enumerateObjectInstances(options: EnumerateVisualObjectInstancesOptions): VisualObjectInstance[] {
-        let instances = super.enumerateObjectInstances(options) || [{
-            /* tslint:disable */
-            selector: null,
-            /* tslint:enable */
-            objectName: options.objectName,
-            properties: {},
-        }, ];
-
-        if (options.objectName === "layout") {
-            const { layout } = this.settings;
-            // autoClamp
-            Object.keys(layout).forEach((name: string) => {
-                if (CONSTANTS[name]) {
-                    const { min, max } = CONSTANTS[name];
-                    const value = layout[name];
-                    layout[name] = Math.min(max, Math.max(min, value));
-                }
-            });
-        }
-
-        $.extend(true, instances[0].properties, this.settings[options.objectName]);
-
-        if (options.objectName === "general") {
-            instances[0].properties["textSize"] = this.myNetworkNavigator.configuration.fontSizePT;
-        }
-        return instances as VisualObjectInstance[];
     }
 
     /**
      * Handles updating of the settings
+     * @returns True if there was some settings changed that requires a data reload
      */
-    private updateSettings(options: VisualUpdateOptions): boolean {
+    private loadSettingsFromPowerBI(dataView: powerbi.DataView): boolean {
         // There are some changes to the options
-        let dataView = options.dataViews && options.dataViews.length && options.dataViews[0];
         if (dataView && dataView.metadata) {
             const oldSettings = $.extend(true, {}, this.settings);
             const newObjects = dataView.metadata.objects;
             const layoutObjs = newObjects && newObjects["layout"];
             const generalObjs = newObjects && newObjects["general"];
 
-            // Merge in the settings
+            // Merge in the new settings from PowerBI
             $.extend(true, this.settings, DEFAULT_SETTINGS, newObjects ? newObjects : {}, {
                 layout: {
                     fontSizePT: generalObjs && generalObjs["textSize"],
@@ -265,6 +302,7 @@ export default class NetworkNavigator extends StatefulVisual<NetworkNavigatorVis
                 this.myNetworkNavigator.configuration = $.extend(true, {}, this.settings.search, this.settings.layout);
             }
 
+            // If maxNodeCount has changed than we need to reload the data.
             if (oldSettings.layout.maxNodeCount !== this.settings.layout.maxNodeCount) {
                 return true;
             }
@@ -273,28 +311,18 @@ export default class NetworkNavigator extends StatefulVisual<NetworkNavigatorVis
     }
 
     /**
-     * Returns if all the properties in the first object are present and equal to the ones in the super set
-     */
-    private objectIsSubset(set: Object, superSet: Object) {
-        if (_.isObject(set)) {
-            return _.any(_.keys(set), (key: string) => !this.objectIsSubset(set[key], superSet[key]));
-        }
-        return set === superSet;
-    }
-
-    /**
      * Attaches the line up events to lineup
      */
     private attachEvents() {
         if (this.myNetworkNavigator) {
             // Cleans up events
-            if (this.listener) {
-                this.listener.destroy();
+            if (this.selectionChangedListener) {
+                this.selectionChangedListener.destroy();
             }
-            this.listener =
+            this.selectionChangedListener =
                 this.myNetworkNavigator.events.on("selectionChanged", (node: INetworkNavigatorNode) => this.onNodeSelected(node));
 
-            // HAX: I am a strong, independent element and I don't need no framework tellin me how much focus I can have
+            // PowerBI will eat some events, so use this to prevent powerbi from eating them
             this.element.find(".filter-box input").on(EVENTS_TO_IGNORE, (e) => e.stopPropagation());
         }
     }
