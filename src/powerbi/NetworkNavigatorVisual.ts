@@ -26,17 +26,17 @@ import { NetworkNavigator as NetworkNavigatorImpl } from "../NetworkNavigator";
 import { INetworkNavigatorNode } from "../models";
 import * as CONSTANTS from "../constants";
 import { INetworkNavigatorSelectableNode, INetworkNavigatorVisualSettings } from "./models";
-import { VisualBase, Visual, updateTypeGetter, UpdateType } from "essex.powerbi.base";
+import { Visual, UpdateType, capabilities, receiveDimensions, IDimensions } from "essex.powerbi.base";
 import converter from "./dataConversion";
-import IVisual = powerbi.IVisual;
 import IVisualHostServices = powerbi.IVisualHostServices;
-import VisualCapabilities = powerbi.VisualCapabilities;
 import VisualInitOptions = powerbi.VisualInitOptions;
 import VisualUpdateOptions = powerbi.VisualUpdateOptions;
 import VisualObjectInstance = powerbi.VisualObjectInstance;
 import EnumerateVisualObjectInstancesOptions = powerbi.EnumerateVisualObjectInstancesOptions;
 import SelectionId = powerbi.visuals.SelectionId;
 import utility = powerbi.visuals.utility;
+import { StatefulVisual } from "pbi-stateful";
+import NetworkNavigatorState from "./state";
 
 /* tslint:disable */
 const MY_CSS_MODULE = require("!css!sass!./css/NetworkNavigatorVisual.scss");
@@ -46,18 +46,15 @@ const EVENTS_TO_IGNORE = "mousedown mouseup click focus blur input pointerdown p
 
 import { DATA_ROLES } from "./constants";
 import { DEFAULT_SETTINGS } from "./defaults";
-import capabilities from "./capabilities";
+import capabilitiesData from "./capabilities";
 
 /* tslint:enable */
 declare var _: any;
 
 @Visual(require("../build").output.PowerBI)
-export default class NetworkNavigator extends VisualBase implements IVisual {
-
-    /**
-     * The capabilities of the Visual
-     */
-    public static capabilities: VisualCapabilities = capabilities;
+@receiveDimensions
+@capabilities(capabilitiesData)
+export default class NetworkNavigator extends StatefulVisual<NetworkNavigatorState> {
 
     /**
      * My network navigator instance
@@ -85,9 +82,9 @@ export default class NetworkNavigator extends VisualBase implements IVisual {
     private settings: INetworkNavigatorVisualSettings = $.extend(true, {}, DEFAULT_SETTINGS);
 
     /**
-     * Getter for the update type
+     * The internal state of the network navigator
      */
-    private updateType = updateTypeGetter(this);
+    private _internalState: NetworkNavigatorState;
 
     /**
      * A debounced event listener for when a node is selected through NetworkNavigator
@@ -144,6 +141,8 @@ export default class NetworkNavigator extends VisualBase implements IVisual {
         if (className) {
             this.element.addClass(className);
         }
+
+        this._internalState = NetworkNavigatorState.create();
     }
 
     /**
@@ -156,35 +155,32 @@ export default class NetworkNavigator extends VisualBase implements IVisual {
     /** 
      * This is called once when the visual is initialially created 
      */
-    public init(options: VisualInitOptions): void {
-        super.init(options);
-
+    public onInit(options: VisualInitOptions): void {
         this.myNetworkNavigator = new NetworkNavigatorImpl(this.element.find("#node_graph"), 500, 500);
         this.host = options.host;
         this.attachEvents();
         this.selectionManager = new utility.SelectionManager({ hostServices: this.host });
     }
 
+    public generateState() {
+        return this._internalState.toJSONObject();
+    }
+
+    public onSetState(state: NetworkNavigatorState) {
+        this._internalState = this._internalState.receive(state);
+    }
+
     /** 
      * Update is called for data updates, resizes & formatting changes 
      */
-    public update(options: VisualUpdateOptions) {
-        super.update(options);
-
+    public onUpdate(options: VisualUpdateOptions, type: UpdateType) {
         let dataView = options.dataViews && options.dataViews.length && options.dataViews[0];
         let dataViewTable = dataView && dataView.table;
         let forceReloadData = false;
 
         // Some settings have been updated
-        const type = this.updateType();
         if (type & UpdateType.Settings) {
             forceReloadData = this.loadSettingsFromPowerBI(dataView);
-        }
-
-        // The visual has been resized
-        if (type & UpdateType.Resize) {
-            this.myNetworkNavigator.dimensions = { width: options.viewport.width, height: options.viewport.height };
-            this.element.css({ width: options.viewport.width, height: options.viewport.height });
         }
 
         // The dataset has been modified, or something has happened that requires us to force reload the data
@@ -201,8 +197,17 @@ export default class NetworkNavigator extends VisualBase implements IVisual {
         }
 
         this.loadSelectionFromPowerBI();
-
         this.myNetworkNavigator.redrawLabels();
+    }
+
+
+    public setDimensions(dim: IDimensions) {
+        if (this.myNetworkNavigator) {
+            this.myNetworkNavigator.dimensions = { width: dim.width, height: dim.height };
+        }
+        if (this.element) {
+            this.element.css({ width: dim.width, height: dim.height });
+        }
     }
 
     /**
@@ -245,6 +250,10 @@ export default class NetworkNavigator extends VisualBase implements IVisual {
      */
     protected getCss(): string[] {
         return (super.getCss() || []).concat([MY_CSS_MODULE]);
+    }
+
+    protected getCustomCssModules() {
+        return [MY_CSS_MODULE];
     }
 
     /**
