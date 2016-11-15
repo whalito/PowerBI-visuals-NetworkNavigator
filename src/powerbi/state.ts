@@ -17,4 +17,9 @@ export default class NetworkNavigatorVisualState extends HasSettings {
      * The current pan translation
      */
     public translate?: [number, number] = [0, 0];
+
+    /**
+     * The node text filter being applied
+     */
+    public textFilter?: string = "";
 }

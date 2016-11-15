@@ -197,6 +197,9 @@ export default class NetworkNavigator extends StatefulVisual<NetworkNavigatorSta
             this.myNetworkNavigator.selectedNode = undefined;
         }
 
+        // Set Text Filter
+        this.myNetworkNavigator.textFilter = this._internalState.textFilter;
+
         // Set pan & zoom
         const doesStateHaveScaleAndTranslate = this._internalState.scale &&
             this._internalState.translate &&
@@ -377,6 +380,12 @@ export default class NetworkNavigator extends StatefulVisual<NetworkNavigatorSta
             this.selectionChangedListener = dispatcher.on("selectionChanged", (node: INetworkNavigatorNode) => this.onNodeSelected(node));
             dispatcher.on("zoomed", ({ scale, translate }: { scale: number, translate: [number, number] }) => {
                 this._internalState = this._internalState.receive({scale, translate});
+            });
+
+            dispatcher.on("textFilter", (textFilter: string) => {
+                this._internalState = this._internalState.receive({ textFilter });
+                const label = textFilter && textFilter !== "" ? `Filtered ${textFilter}` : `Cleared text filter`;
+                publishChange(this, label, this._internalState.toJSONObject());
             });
 
             // PowerBI will eat some events, so use this to prevent powerbi from eating them

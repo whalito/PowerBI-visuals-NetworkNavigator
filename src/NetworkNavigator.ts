@@ -29,6 +29,7 @@ import * as CONSTANTS from "./constants";
 import { DEFAULT_EDGE_SIZE, DEFAULT_NODE_SIZE, DEFAULT_CONFIGURATION } from "./defaults";
 import { INetworkNavigatorData, INetworkNavigatorNode, INetworkNavigatorConfiguration } from "./models";
 import template from "./templates/networkNavigator.tmpl";
+import * as _ from "lodash";
 
 /* tslint:disable */
 const log = require("debug")("NetworkNavigator");
@@ -59,7 +60,7 @@ export class NetworkNavigator {
      * The element into which the network navigator is loaded
      */
     private element: JQuery;
-    
+
     /**
      * The svg container
      */
@@ -112,16 +113,18 @@ export class NetworkNavigator {
         this.element = $(template());
         element.append(this.element);
         this.svgContainer = this.element.find(".svg-container");
-        const filterBox = this.element.find(".search-filter-box");
         this.element.find(".clear-selection").on("click", () => {
-            filterBox.val("");
-            this.filterNodes(filterBox.val());
+            this.textFilter = "";
             this.updateSelection(undefined);
-        });
-        filterBox.on("input", () => {
-            this.filterNodes(filterBox.val());
+            this.events.raiseEvent("textFilter", "");
         });
 
+        const handleTextInput = _.debounce(() => {
+            this.filterNodes(this.textFilter);
+            this.events.raiseEvent("textFilter", this.textFilter);
+        }, 500);
+
+        this.filterBox.on("input", handleTextInput);
         this.dimensions = { width: width, height: height };
         this.svg = d3.select(this.svgContainer[0]).append("svg")
             .attr("width", width)
@@ -133,6 +136,21 @@ export class NetworkNavigator {
             .charge(-120)
             .size([width, height]);
         this.vis = this.svg.append("svg:g");
+    }
+
+    public get textFilter(): string {
+        return this.filterBox.val();
+    }
+
+    public set textFilter(value: string) {
+        if (value !== this.textFilter) {
+            this.filterBox.val(value);
+            this.filterNodes(value);
+        }
+    }
+
+    private get filterBox() {
+        return this.element.find(".search-filter-box");
     }
 
     /**
@@ -545,7 +563,9 @@ export class NetworkNavigator {
                 this._selectedNode.selected = false;
             }
             this._selectedNode = n;
-            n.selected = true;
+            if (n) {
+                n.selected = true;
+            }
             this.redrawSelection();
         }
     }
