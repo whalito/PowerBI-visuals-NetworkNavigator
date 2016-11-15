@@ -136,6 +136,7 @@ export class NetworkNavigator {
             .charge(-120)
             .size([width, height]);
         this.vis = this.svg.append("svg:g");
+        this.redraw();
     }
 
     public get textFilter(): string {

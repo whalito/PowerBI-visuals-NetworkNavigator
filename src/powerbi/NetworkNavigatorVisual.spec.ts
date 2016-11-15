@@ -92,6 +92,9 @@ describe("NetworkNavigatorVisual", () => {
         instance.update(require("./test_cases/simpleSourceTarget.json"));
 
         const data = instance.myNetworkNavigator.data;
+        expect(data).to.be.ok;
+        expect(data.links).to.be.ok;
+
         const resultLinks = data.links.map(n => {
             return data.nodes[n.source].name + "->" + data.nodes[n.target].name;
         }).sort();
@@ -110,7 +113,7 @@ describe("NetworkNavigatorVisual", () => {
         expect(resultLinks).to.be.deep.equal(expectedLinks);
     });
 
-    it ("should load the node colors correctly", () => {
+    it("should load the node colors correctly", () => {
         const { instance } = createInstance();
 
         // instance.update(require("./test_cases/simpleSourceTarget.json"));
