@@ -30,6 +30,10 @@ import { DEFAULT_EDGE_SIZE, DEFAULT_NODE_SIZE, DEFAULT_CONFIGURATION } from "./d
 import { INetworkNavigatorData, INetworkNavigatorNode, INetworkNavigatorConfiguration } from "./models";
 import template from "./templates/networkNavigator.tmpl";
 
+/* tslint:disable */
+const log = require("debug")("NetworkNavigator");
+/* tslint:enable */
+
 /**
  * The network navigator is an advanced force graph based component
  */
@@ -494,6 +498,45 @@ export class NetworkNavigator {
     }
 
     /**
+     * Updates the selection based on the given node
+     */
+    private updateSelection(n? : INetworkNavigatorNode) {
+        let selectedNode = n;
+        if (n !== this._selectedNode) {
+            if (this._selectedNode) {
+                this._selectedNode.selected = false;
+            }
+            if (n) {
+                n.selected = true;
+            }
+        } else {
+            // Toggle the selected node 
+            if (this._selectedNode) {
+                this._selectedNode.selected = false;
+            }
+            selectedNode = undefined;
+        }
+        log("raise selectionChanged", this._selectedNode);
+        this.selectedNode = selectedNode;
+        this.events.raiseEvent("selectionChanged", this._selectedNode);
+    }
+
+    public set selectedNode(n: INetworkNavigatorNode) {
+        if (this._selectedNode !== n) {
+            if (this._selectedNode) {
+                this._selectedNode.selected = false;
+            }
+            this._selectedNode = n;
+            n.selected = true;
+            this.redrawSelection();
+        }
+    }
+
+    public get selectedNode(): INetworkNavigatorNode {
+        return this._selectedNode;
+    }
+
+    /**
      * Reflows the given links and nodes
      */
     private reflow(link: d3.Selection<any>, node: d3.Selection<any>) {
@@ -511,28 +554,5 @@ export class NetworkNavigator {
             .attr("x2", (d: any) => d[2].x)
             .attr("y2", (d: any) => d[2].y);
         node.attr("transform", (d: any) => `translate(${d.x},${d.y})`);
-    }
-
-    /**
-     * Updates the selection based on the given node
-     */
-    private updateSelection(n? : INetworkNavigatorNode) {
-        // Toggle the selected node
-        if (n !== this._selectedNode) {
-            if (this._selectedNode) {
-                this._selectedNode.selected = false;
-            }
-            if (n) {
-                n.selected = true;
-            }
-            this._selectedNode = n;
-        } else {
-            if (this._selectedNode) {
-                this._selectedNode.selected = false;
-            }
-            this._selectedNode = undefined;
-        }
-        this.events.raiseEvent("selectionChanged", this._selectedNode);
-        this.redrawSelection();
     }
 }

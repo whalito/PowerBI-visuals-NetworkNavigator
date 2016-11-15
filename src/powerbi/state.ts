@@ -6,4 +6,5 @@ import {
  * Represents the state of the timebrush
  */
 export default class NetworkNavigatorVisualState extends HasSettings {
+    public selectedNodeIndex?: number;
 }

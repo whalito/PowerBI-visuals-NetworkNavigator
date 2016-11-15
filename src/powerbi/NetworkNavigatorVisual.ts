@@ -35,7 +35,7 @@ import VisualObjectInstance = powerbi.VisualObjectInstance;
 import EnumerateVisualObjectInstancesOptions = powerbi.EnumerateVisualObjectInstancesOptions;
 import SelectionId = powerbi.visuals.SelectionId;
 import utility = powerbi.visuals.utility;
-import { StatefulVisual } from "pbi-stateful";
+import { StatefulVisual, publishChange } from "pbi-stateful";
 import NetworkNavigatorState from "./state";
 
 /* tslint:disable */
@@ -86,10 +86,27 @@ export default class NetworkNavigator extends StatefulVisual<NetworkNavigatorSta
      */
     private _internalState: NetworkNavigatorState;
 
+    private _nodes: INetworkNavigatorNode[];
+
     /**
      * A debounced event listener for when a node is selected through NetworkNavigator
      */
     private onNodeSelected = _.debounce((node: INetworkNavigatorSelectableNode) => {
+        const isInternalStateNodeUnset = this._internalState.selectedNodeIndex === undefined;
+        const areBothUndefined = !node && isInternalStateNodeUnset;
+        const areIndexesEqual = node && this._internalState.selectedNodeIndex === node.index;
+
+        if (areBothUndefined || areIndexesEqual) {
+            return;
+        }
+
+        this._internalState = this._internalState.receive({ selectedNodeIndex: node ? node.index : undefined });
+        this.persistNodeSelection(node as INetworkNavigatorSelectableNode);
+        const label = node ? `Select ${node.name}` : "Clear selection";
+        publishChange(this, label, this._internalState.toJSONObject());
+    }, 100);
+
+    protected persistNodeSelection(node: INetworkNavigatorSelectableNode) {
         /* tslint:disable */
         let filter: any = null;
         /* tslint:enable */
@@ -128,7 +145,7 @@ export default class NetworkNavigator extends StatefulVisual<NetworkNavigatorSta
         }
 
         this.host.persistProperties(objects);
-    }, 100);
+    }
 
     /*
      * Constructor for the network navigator
@@ -168,6 +185,17 @@ export default class NetworkNavigator extends StatefulVisual<NetworkNavigatorSta
 
     public onSetState(state: NetworkNavigatorState) {
         this._internalState = this._internalState.receive(state);
+
+        // Set the Selected Node
+        if (this._internalState.selectedNodeIndex) {
+            const nodeIndex = this._internalState.selectedNodeIndex;
+            const node = this._nodes && this._nodes.length >= nodeIndex ? this._nodes[nodeIndex] : undefined;
+            this.persistNodeSelection(node as INetworkNavigatorSelectableNode);
+            this.myNetworkNavigator.selectedNode = node;
+        } else {
+            this.persistNodeSelection(undefined);
+            this.myNetworkNavigator.selectedNode = undefined;
+        }
     }
 
     /** 
@@ -194,9 +222,8 @@ export default class NetworkNavigator extends StatefulVisual<NetworkNavigatorSta
                     nodes: [],
                 });
             }
+            this.loadSelectionFromPowerBI();
         }
-
-        this.loadSelectionFromPowerBI();
         this.myNetworkNavigator.redrawLabels();
     }
 
@@ -262,11 +289,12 @@ export default class NetworkNavigator extends StatefulVisual<NetworkNavigatorSta
     private loadSelectionFromPowerBI() {
         const data = this.myNetworkNavigator.getData();
         const nodes = data && data.nodes;
-        const selectedIds = this.selectionManager.getSelectionIds();
+        const selectedIds = this._internalState.selectedNodeIndex; this.selectionManager.getSelectionIds();
 
         // For each of the nodes, check to see if their ids are in the selection manager, and
         // mark them as selected
         if (nodes && nodes.length) {
+            this._nodes = nodes;
             let updated = false;
             nodes.forEach((n) => {
                 let isSelected =
