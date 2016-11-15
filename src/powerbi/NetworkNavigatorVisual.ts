@@ -196,6 +196,23 @@ export default class NetworkNavigator extends StatefulVisual<NetworkNavigatorSta
             this.persistNodeSelection(undefined);
             this.myNetworkNavigator.selectedNode = undefined;
         }
+
+        // Set pan & zoom
+        const doesStateHaveScaleAndTranslate = this._internalState.scale &&
+            this._internalState.translate &&
+            this._internalState.translate.length === 2;
+
+        let doesScaleAndTranslateDiffer = false;
+        if (doesStateHaveScaleAndTranslate) {
+            doesScaleAndTranslateDiffer = this._internalState.scale !== this.myNetworkNavigator.scale ||
+                !_.isEqual(this._internalState.translate, this.myNetworkNavigator.translate);
+        }
+
+        if (doesStateHaveScaleAndTranslate && doesScaleAndTranslateDiffer) {
+            this.myNetworkNavigator.scale = this._internalState.scale;
+            this.myNetworkNavigator.translate = this._internalState.translate;
+            this.myNetworkNavigator.redraw();
+        }
     }
 
     /** 
@@ -356,8 +373,11 @@ export default class NetworkNavigator extends StatefulVisual<NetworkNavigatorSta
             if (this.selectionChangedListener) {
                 this.selectionChangedListener.destroy();
             }
-            this.selectionChangedListener =
-                this.myNetworkNavigator.events.on("selectionChanged", (node: INetworkNavigatorNode) => this.onNodeSelected(node));
+            const dispatcher = this.myNetworkNavigator.events;
+            this.selectionChangedListener = dispatcher.on("selectionChanged", (node: INetworkNavigatorNode) => this.onNodeSelected(node));
+            dispatcher.on("zoomed", ({ scale, translate }: { scale: number, translate: [number, number] }) => {
+                this._internalState = this._internalState.receive({scale, translate});
+            });
 
             // PowerBI will eat some events, so use this to prevent powerbi from eating them
             this.element.find(".filter-box input").on(EVENTS_TO_IGNORE, (e) => e.stopPropagation());

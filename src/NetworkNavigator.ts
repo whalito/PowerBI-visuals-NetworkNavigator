@@ -46,10 +46,20 @@ export class NetworkNavigator {
     public events = new EventEmitter();
 
     /**
+     * The current translate
+     */
+    public translate: [number, number] = [0, 0];
+
+    /**
+     * The current scale
+     */
+    public scale: number = 1;
+
+    /**
      * The element into which the network navigator is loaded
      */
     private element: JQuery;
-
+    
     /**
      * The svg container
      */
@@ -253,9 +263,8 @@ export class NetworkNavigator {
      * Redraws the force network navigator
      */
     public redraw() {
-        if (this.vis && d3.event) {
-            let zoomEvt = <any>d3.event;
-            this.vis.attr("transform", `translate(${zoomEvt.translate}) scale(${zoomEvt.scale})`);
+        if (this.vis) {
+            this.vis.attr("transform", `translate(${this.translate}) scale(${this.scale})`);
         }
     }
 
@@ -275,7 +284,16 @@ export class NetworkNavigator {
 
         this.zoom = d3.behavior.zoom()
             .scaleExtent([this._configuration.minZoom, this._configuration.maxZoom])
-            .on("zoom", () => this.redraw());
+            .on("zoom", () => {
+                const event = d3.event as d3.ZoomEvent;
+                this.scale = event.scale;
+                this.translate = event.translate;
+                this.redraw();
+                this.events.raiseEvent("zoomed", {
+                    scale: this.scale,
+                    translate: this.translate,
+                });
+            });
 
         let drag = d3.behavior.drag()
             .origin(function(d: any) { return <any>d; })
