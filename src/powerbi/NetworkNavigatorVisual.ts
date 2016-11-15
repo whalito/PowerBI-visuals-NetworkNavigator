@@ -292,6 +292,11 @@ export default class NetworkNavigator extends StatefulVisual<NetworkNavigatorSta
         return instances as VisualObjectInstance[];
     }
 
+    public destroy() {
+        super.destroy();
+        this.container.empty();
+    }
+
     /**
      * Gets the inline css used for this element
      */

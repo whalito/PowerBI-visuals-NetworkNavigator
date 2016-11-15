@@ -49,7 +49,9 @@ describe("NetworkNavigatorVisual", () => {
         const element = $("<div>");
         instance.init(<any>{
             element: element,
-            host: {},
+            host: {
+                persistProperties: () => true
+            },
             viewport: {
                 width: 100,
                 height: 100,
@@ -89,7 +91,7 @@ describe("NetworkNavigatorVisual", () => {
     it("should load the links for a simple source/target dataset on update", () => {
         const { instance } = createInstance();
 
-        instance.update(require("./test_cases/simpleSourceTarget.json"));
+        instance.onUpdate(require("./test_cases/simpleSourceTarget.json"), 7);
 
         const data = instance.myNetworkNavigator.data;
         expect(data).to.be.ok;
@@ -135,11 +137,9 @@ describe("NetworkNavigatorVisual", () => {
         expect(result).to.be.deep.equal(expected);
     });
 
-    it ("should load the node weights correctly", () => {
+    it("should load the node weights correctly", () => {
         const { instance } = createInstance();
-
-        // instance.update(require("./test_cases/simpleSourceTarget.json"));
-        instance.update(require("./test_cases/allFields.json"));
+        instance.onUpdate(require("./test_cases/allFields.json"), 7);
 
         const result = instance.myNetworkNavigator.data.nodes.map(n => n.value).sort();
         const expected = [
@@ -157,11 +157,9 @@ describe("NetworkNavigatorVisual", () => {
         expect(result).to.be.deep.equal(expected);
     });
 
-    it ("should load the node label colors correctly", () => {
+    it("should load the node label colors correctly", () => {
         const { instance } = createInstance();
-
-        // instance.update(require("./test_cases/simpleSourceTarget.json"));
-        instance.update(require("./test_cases/allFields.json"));
+        instance.onUpdate(require("./test_cases/allFields.json"), 7);
 
         const result = instance.myNetworkNavigator.data.nodes.map(n => n.labelColor).sort();
         const expected = [
@@ -179,11 +177,9 @@ describe("NetworkNavigatorVisual", () => {
         expect(result).to.be.deep.equal(expected);
     });
 
-    it ("should load the edge weights correctly", () => {
+    it("should load the edge weights correctly", () => {
         const { instance } = createInstance();
-
-        // instance.update(require("./test_cases/simpleSourceTarget.json"));
-        instance.update(require("./test_cases/allFields.json"));
+        instance.onUpdate(require("./test_cases/allFields.json"), 7);
 
         const result = instance.myNetworkNavigator.data.links.map(n => n.value).sort();
         const expected = [
@@ -206,10 +202,9 @@ describe("NetworkNavigatorVisual", () => {
      */
     const settingsTestSetup = () => {
         const { instance } = createInstance();
-
         // instance.update(require("./test_cases/simpleSourceTarget.json"));
-        instance.update(require("./test_cases/settingsChanged.json"));
-
+        const update = require("./test_cases/settingsChanged.json");
+        instance.onUpdate(update, 4);
         return { instance };
     };
 
