@@ -1,6 +1,7 @@
 import { INetworkNavigatorData, INetworkNavigatorLink } from "../models";
-import { INetworkNavigatorSelectableNode, INetworkNavigatorVisualSettings } from "./models";
+import { INetworkNavigatorSelectableNode } from "./models";
 import { DATA_ROLES } from "./constants";
+import NetworkNavigatorState from "./state";
 
 import DataView = powerbi.DataView;
 import SelectionId = powerbi.visuals.SelectionId;
@@ -10,7 +11,7 @@ import SelectionId = powerbi.visuals.SelectionId;
  */
 export function converter(
     dataView: DataView,
-    settings: INetworkNavigatorVisualSettings): INetworkNavigatorData<INetworkNavigatorSelectableNode> {
+    settings: NetworkNavigatorState): INetworkNavigatorData<INetworkNavigatorSelectableNode> {
     "use strict";
     let nodeList: INetworkNavigatorSelectableNode[] = [];
     let nodeMap: { [name: string] : INetworkNavigatorSelectableNode } = {};
@@ -118,7 +119,7 @@ export function converter(
         });
 
         // If we are limiting the number of nodes, then trim the final list
-        const maxNodes = settings.layout.maxNodeCount;
+        const maxNodes = settings.maxNodeCount;
         if (typeof maxNodes === "number" && maxNodes > 0) {
             nodeList = nodeList.slice(0, maxNodes);
             linkList = linkList.filter(n => n.source < maxNodes && n.target < maxNodes);
