@@ -27,6 +27,8 @@ import VisualCapabilities = powerbi.VisualCapabilities;
 import DataViewMapping = powerbi.DataViewMapping;
 import NetworkNavigatorState from "./state";
 
+const log = require("debug")("NetworkNavigator:Capabilities"); // tslint:disable-line
+
 /**
  * Defines the capabilities for this visual for PowerBI
  */
@@ -61,7 +63,7 @@ export const capabilities: VisualCapabilities = {
     sorting: {
         default: {}
     },
-    objects: $.extend({
+    objects: $.extend({}, {
         general: {
             displayName: "General",
             properties: {

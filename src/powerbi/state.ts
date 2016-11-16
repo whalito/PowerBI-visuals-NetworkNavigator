@@ -22,6 +22,7 @@ export default class NetworkNavigatorVisualState extends HasSettings {
     @boolSetting({
         category: CAT_SEARCH,
         displayName: "Case Insensitive",
+        description: "Case Insensitive Filtering",
         defaultValue: true,
     })
     public caseInsensitive: boolean = true;
@@ -54,6 +55,7 @@ export default class NetworkNavigatorVisualState extends HasSettings {
     @numberSetting({
         category: CAT_LAYOUT,
         displayName: "Link Distance",
+        description: "Link Distance",
         min: constants.linkDistance.min,
         max: constants.linkDistance.max,
         defaultValue: constants.linkDistance.default,
@@ -66,6 +68,7 @@ export default class NetworkNavigatorVisualState extends HasSettings {
     @numberSetting({
         category: CAT_LAYOUT,
         displayName: "Link Strength",
+        description: "Link Strength",
         min: constants.linkStrength.min,
         max: constants.linkStrength.max,
         defaultValue: constants.linkStrength.default,
@@ -78,6 +81,7 @@ export default class NetworkNavigatorVisualState extends HasSettings {
     @numberSetting({
         category: CAT_LAYOUT,
         displayName: "Gravity",
+        description: "Gravity parameter used in force-directed layout",
         min: constants.gravity.min,
         max: constants.gravity.max,
         defaultValue: constants.gravity.default,
@@ -90,6 +94,7 @@ export default class NetworkNavigatorVisualState extends HasSettings {
     @numberSetting({
         category: CAT_LAYOUT,
         displayName: "Charge",
+        description: "Charge parameter used in force-directed layout",
         min: constants.charge.min,
         max: constants.charge.max,
         defaultValue: constants.charge.default,
@@ -113,6 +118,7 @@ export default class NetworkNavigatorVisualState extends HasSettings {
     @numberSetting({
         category: CAT_LAYOUT,
         displayName: "Min Zoom",
+        description: "Minimum zoom scale",
         min: constants.minZoom.min,
         max: constants.minZoom.max,
         defaultValue: constants.minZoom.default,
@@ -125,6 +131,7 @@ export default class NetworkNavigatorVisualState extends HasSettings {
     @numberSetting({
         category: CAT_LAYOUT,
         displayName: "Max Zoom",
+        description: "Maximum zoom scale",
         min: constants.maxZoom.min,
         max: constants.maxZoom.max,
         defaultValue: constants.maxZoom.default,
@@ -148,6 +155,7 @@ export default class NetworkNavigatorVisualState extends HasSettings {
     @numberSetting({
         category: CAT_LAYOUT,
         displayName: "Font Size",
+        description: "The font size (pts) to use for labels",
         name: "textSize",
         min: constants.fontSizePT.min,
         max: constants.fontSizePT.max,
