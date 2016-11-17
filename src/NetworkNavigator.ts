@@ -283,6 +283,11 @@ export class NetworkNavigator {
      * Redraws the force network navigator
      */
     public redraw() {
+        this.renderGraph();
+        this.zoomToViewport();
+    }
+
+    public renderGraph() {
         if (this.graph) {
             const graph = this.graph;
             const me = this;
@@ -293,7 +298,7 @@ export class NetworkNavigator {
                 const event = d3.event as d3.ZoomEvent;
                 this.scale = event.scale;
                 this.translate = event.translate;
-                this.redraw();
+                this.zoomToViewport();
                 this.events.raiseEvent("zoomed", {
                     scale: this.scale,
                     translate: this.translate,
@@ -480,6 +485,9 @@ export class NetworkNavigator {
 
             this.force.on("tick", tick);
         }
+    }
+
+    public zoomToViewport() {
         if (this.vis) {
             this.vis.attr("transform", `translate(${this.translate}) scale(${this.scale})`);
         }
