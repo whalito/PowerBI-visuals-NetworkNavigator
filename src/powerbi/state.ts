@@ -46,7 +46,7 @@ export default class NetworkNavigatorVisualState extends HasSettings implements 
         category: CAT_LAYOUT,
         displayName: "Max nodes",
         description: "The maximum number of nodes to render",
-        defaultValue: 0
+        defaultValue: 0,
     })
     public maxNodeCount: number = 0;
 
