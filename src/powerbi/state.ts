@@ -183,24 +183,4 @@ export default class NetworkNavigatorVisualState extends HasSettings implements 
      * The node text filter being applied
      */
     public textFilter: string = "";
-
-    public searchSettings() {
-        return { caseInsensitive: this.caseInsensitive };
-    }
-
-    public layoutSettings() {
-        return {
-            animate: this.animate,
-            maxNodeCount: this.maxNodeCount,
-            linkDistance: this.linkDistance,
-            linkStrength: this.linkStrength,
-            gravity: this.gravity,
-            charge: this.charge,
-            labels: this.labels,
-            minZoom: this.minZoom,
-            maxZoom: this.maxZoom,
-            defaultLabelColor: this.defaultLabelColor,
-            fontSizePT: this.fontSizePT,
-        };
-    }
 }
