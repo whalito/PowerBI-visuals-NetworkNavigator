@@ -255,7 +255,7 @@ export default class NetworkNavigator extends StatefulVisual<NetworkNavigatorSta
     /**
      * Enumerates the instances for the objects (settings) that appear in the power bi panel
      */
-    public handleEnumerateObjectInstances(options: EnumerateVisualObjectInstancesOptions): VisualObjectInstance[] {
+    protected handleEnumerateObjectInstances(options: EnumerateVisualObjectInstancesOptions): powerbi.VisualObjectInstanceEnumeration {
         return this._internalState.buildEnumerationObjects(options.objectName, this._dataView, false);
     }
 
