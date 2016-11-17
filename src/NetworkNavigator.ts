@@ -374,6 +374,11 @@ export class NetworkNavigator {
             this.force.start();
         }
 
+        const edgeGradientScale = d3.scale.linear()
+            .domain([0, 10000]) // TODO: Get these from config
+            .interpolate(d3.interpolateRgb as any)
+            .range(["#FDFEFE", "#273746"] as any); // TODO: Get these from config
+
         this.vis.append("svg:defs").selectAll("marker")
             .data(["end"])
             .enter()
@@ -392,19 +397,14 @@ export class NetworkNavigator {
             .data(bilinks)
             .enter().append("line")
             .attr("class", "link")
-            .style("stroke", "gray")
-            .style("stroke-width", (d: any) => {
-                const width = d[3];
-
-                // Return the default node size if it hasn't been passed with the node
-                /* tslint:disable */
-                if (typeof width === "undefined" || width === null) {
-                /* tslint:enable */
-                    return DEFAULT_EDGE_SIZE;
-                }
-                // Make sure > 0
-                return width > 0 ? width : 0;
+            .style("stroke", function(d: any) {
+                const edgeValue = d[3];
+                const isEdgeValuePresent = edgeValue !== undefined;
+                return isEdgeValuePresent ?
+                    edgeGradientScale(edgeValue) :
+                    "gray";
             })
+            .style("stroke-width", DEFAULT_EDGE_SIZE)
             .attr("id", function(d: any) {
                 return d[0].name.replace(/\./g, "_").replace(/@/g, "_") + "_" +
                     d[2].name.replace(/\./g, "_").replace(/@/g, "_");

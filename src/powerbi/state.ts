@@ -165,6 +165,30 @@ export default class NetworkNavigatorVisualState extends HasSettings implements 
     public fontSizePT: number = constants.fontSizePT.defaultValue;
 
     /**
+     * The minimum value for edge weights
+     */
+    @numberSetting({
+        category: CAT_LAYOUT,
+        displayName: "Min Edge Weight",
+        description: "The minimum value of the edge weight data",
+        name: "minEdgeWeight",
+        defaultValue: constants.minEdgeWeight.defaultValue,
+    })
+    public minEdgeWeight: number = constants.minEdgeWeight.defaultValue;
+
+    /**
+     * The minimum value for edge weights
+     */
+    @numberSetting({
+        category: CAT_LAYOUT,
+        displayName: "Min Edge Weight",
+        description: "The minimum value of the edge weight data",
+        name: "minEdgeWeight",
+        defaultValue: constants.maxEdgeWeight.defaultValue,
+    })
+    public maxEdgeWeight: number = constants.maxEdgeWeight.defaultValue;
+
+    /**
      * The current selected node index
      */
     public selectedNodeIndex: number;

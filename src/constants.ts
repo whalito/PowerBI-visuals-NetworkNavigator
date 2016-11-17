@@ -56,3 +56,7 @@ export const maxZoom = { min: .0001, max: 100000, default: 100 };
  * Defines the minimum, maximum, and default values for the font size
  */
 export const fontSizePT = { min: 6, max: 30, defaultValue: 8 };
+
+export const minEdgeWeight = { defaultValue: 0 };
+
+export const maxEdgeWeight = { defaultValue: 100 };
