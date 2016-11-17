@@ -1,7 +1,6 @@
-import { INetworkNavigatorData, INetworkNavigatorLink } from "../models";
+import { INetworkNavigatorData, INetworkNavigatorLink, INetworkNavigatorConfiguration } from "../models";
 import { INetworkNavigatorSelectableNode } from "./models";
 import { DATA_ROLES } from "./constants";
-import NetworkNavigatorState from "./state";
 
 import DataView = powerbi.DataView;
 import SelectionId = powerbi.visuals.SelectionId;
@@ -11,7 +10,7 @@ import SelectionId = powerbi.visuals.SelectionId;
  */
 export function converter(
     dataView: DataView,
-    settings: NetworkNavigatorState): INetworkNavigatorData<INetworkNavigatorSelectableNode> {
+    settings: INetworkNavigatorConfiguration): INetworkNavigatorData<INetworkNavigatorSelectableNode> {
     "use strict";
     let nodeList: INetworkNavigatorSelectableNode[] = [];
     let nodeMap: { [name: string] : INetworkNavigatorSelectableNode } = {};
