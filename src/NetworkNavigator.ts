@@ -366,15 +366,44 @@ export class NetworkNavigator {
                 this.force.start();
             }
 
-            const edgeColorWeightDomain = [
+            const determineDomain: (
+                configMin: number,
+                configMax: number,
+                fn: (i: any) => number
+            ) => [number, number] = (
+                configMin: number,
+                configMax: number,
+                fn: (i: any) => number
+            ) => {
+                if (configMin !== undefined && configMax !== undefined) {
+                    return [configMin, configMax];
+                } else {
+                    let min: number = undefined;
+                    let max: number = undefined;
+                    const data = bilinks.map(fn);
+                    data.forEach((d: number) => {
+                        if (min === undefined || d < min) {
+                            min = d;
+                        }
+                        if (max === undefined || d > max) {
+                            max = d;
+                        }
+                    });
+                    return [min, max];
+                }
+            };
+
+            const edgeColorWeightDomain = determineDomain(
                 this.configuration.minEdgeColorWeight,
                 this.configuration.maxEdgeColorWeight,
-            ] as [number, number];
+                (b) => b[4]
+            );
 
-            const edgeWidthDomain = [
+            const edgeWidthDomain = determineDomain(
                 this.configuration.minEdgeWeight,
                 this.configuration.maxEdgeWeight,
-            ] as [number, number];
+                (b) => b[3]
+            );
 
             const edgeColorScale = d3.scale.linear()
                 .domain(edgeColorWeightDomain)
@@ -388,8 +417,8 @@ export class NetworkNavigator {
                 .domain(edgeWidthDomain)
                 .interpolate(d3.interpolateNumber as any)
                 .range([
-                    this.configuration.minEdgeWidth,
-                    this.configuration.maxEdgeWidth,
+                    this.configuration.edgeMinWidth,
+                    this.configuration.edgeMaxWidth,
                 ]);
 
             const domainBound = (v: number, domain: [number, number]) => (
@@ -398,9 +427,11 @@ export class NetworkNavigator {
 
             const xform = (v: number, scale: Function, domain: [number, number], defaultValue: any) => {
                 const isValuePresent = v !== undefined;
-                return isValuePresent ?
-                    scale(domainBound(v, domain)) :
+                const boundedValue = isValuePresent ? domainBound(v, domain) : v;
+                const result = isValuePresent ?
+                    scale(boundedValue) :
                     defaultValue;
+                return result;
             };
 
             this.vis.append("svg:defs").selectAll("marker")

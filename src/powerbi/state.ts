@@ -171,9 +171,9 @@ export default class NetworkNavigatorVisualState extends HasSettings implements 
         category: CAT_LAYOUT,
         displayName: "Min Edge Weight",
         description: "The minimum value of the edge weight data",
-        defaultValue: constants.minEdgeWeight.defaultValue,
+        defaultValue: undefined,
     })
-    public minEdgeWeight: number = constants.minEdgeWeight.defaultValue;
+    public minEdgeWeight: number = undefined;
 
     /**
      * The minimum value for edge weights
@@ -182,9 +182,9 @@ export default class NetworkNavigatorVisualState extends HasSettings implements 
         category: CAT_LAYOUT,
         displayName: "Max Edge Weight",
         description: "The maximum value of the edge weight data",
-        defaultValue: constants.maxEdgeWeight.defaultValue,
+        defaultValue: undefined,
     })
-    public maxEdgeWeight: number = constants.maxEdgeWeight.defaultValue;
+    public maxEdgeWeight: number = undefined;
 
     /**
      * The minimum value for edge color-weights
@@ -193,9 +193,9 @@ export default class NetworkNavigatorVisualState extends HasSettings implements 
         category: CAT_LAYOUT,
         displayName: "Min Edge Color Weight",
         description: "The minimum value of the edge color weight data",
-        defaultValue: constants.minEdgeWeight.defaultValue,
+        defaultValue: undefined,
     })
-    public minEdgeColorWeight: number = constants.minEdgeWeight.defaultValue;
+    public minEdgeColorWeight: number = undefined;
 
     /**
      * The minimum value for edge weights
@@ -204,9 +204,9 @@ export default class NetworkNavigatorVisualState extends HasSettings implements 
         category: CAT_LAYOUT,
         displayName: "Max Edge Color Weight",
         description: "The maximum value of the edge color weight data",
-        defaultValue: constants.maxEdgeWeight.defaultValue,
+        defaultValue: undefined,
     })
-    public maxEdgeColorWeight: number = constants.maxEdgeWeight.defaultValue;
+    public maxEdgeColorWeight: number = undefined;
 
     /**
      * The minimum edge width
@@ -217,7 +217,7 @@ export default class NetworkNavigatorVisualState extends HasSettings implements 
         description: "The minimum edge width to render",
         min: constants.edgeMinWidth.min,
         max: constants.edgeMinWidth.max,
-        defaultValue: constants.minEdgeWeight.defaultValue,
+        defaultValue: constants.edgeMinWidth.defaultValue,
     })
     public edgeMinWidth: number = constants.edgeMinWidth.defaultValue;
 

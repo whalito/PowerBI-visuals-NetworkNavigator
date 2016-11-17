@@ -171,12 +171,12 @@ export interface INetworkNavigatorConfiguration {
     /**
      * The minimum width of edges
      */
-    minEdgeWidth?: number;
+    edgeMinWidth?: number;
 
     /**
      * The maximum width of edges
      */
-    maxEdgeWidth?: number;
+    edgeMaxWidth?: number;
 
     /**
      * The minimum edge color-weight
