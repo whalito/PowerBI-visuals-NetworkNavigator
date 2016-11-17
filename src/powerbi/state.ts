@@ -5,6 +5,7 @@ import {
     colorSetting,
 } from "essex.powerbi.base";
 import * as constants from "../constants";
+import { INetworkNavigatorConfiguration } from "../models";
 /* tslint:disable */
 const colors = require("essex.powerbi.base/dist/lib/colors"); 
 /* tslint:enable */
@@ -15,7 +16,7 @@ const CAT_LAYOUT = "Layout";
 /**
  * Represents the state of the timebrush
  */
-export default class NetworkNavigatorVisualState extends HasSettings {
+export default class NetworkNavigatorVisualState extends HasSettings implements INetworkNavigatorConfiguration {
     /**
      * Searches are case insensitive
      */

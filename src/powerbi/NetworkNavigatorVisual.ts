@@ -210,6 +210,9 @@ export default class NetworkNavigator extends StatefulVisual<NetworkNavigatorSta
             this.myNetworkNavigator.translate = this._internalState.translate;
             this.myNetworkNavigator.redraw();
         }
+
+        // Set configuration
+        this.myNetworkNavigator.configuration = this._internalState;
     }
 
     /** 
@@ -310,6 +313,7 @@ export default class NetworkNavigator extends StatefulVisual<NetworkNavigatorSta
     private loadSettingsFromPowerBI(dataView: powerbi.DataView): boolean {
         const oldState = this._internalState;
         this._internalState = this._internalState.receiveFromPBI(dataView);
+        this.myNetworkNavigator.configuration = this._internalState;
         return oldState.maxNodeCount !== this._internalState.maxNodeCount;
     }
 
