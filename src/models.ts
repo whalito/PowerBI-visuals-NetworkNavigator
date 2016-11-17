@@ -67,9 +67,14 @@ export interface INetworkNavigatorLink {
     target?: number;
 
     /**
-     * The value of the link, basically the weight of the edge
+     * The value of the link, used to weight the link width
      */
     value?: number;
+
+    /**
+     * The value of the link, used to weight the link color 
+     */
+    colorValue?: number;
 }
 
 /**
@@ -164,12 +169,32 @@ export interface INetworkNavigatorConfiguration {
     maxEdgeWeight?: number;
 
     /**
+     * The minimum width of edges
+     */
+    minEdgeWidth?: number;
+
+    /**
+     * The maximum width of edges
+     */
+    maxEdgeWidth?: number;
+
+    /**
+     * The minimum edge color-weight
+     */
+    minEdgeColorWeight?: number;
+
+    /**
+     * The maximum edge color-weight
+     */
+    maxEdgeColorWeight?: number;
+
+    /**
      * The edge weight starting color
      */
-    edgeWeightStartColor?: string;
+    edgeStartColor?: string;
 
     /**
      * The edge weight ending color
      */
-    edgeWeightEndColor?: string;
+    edgeEndColor?: string;
 }

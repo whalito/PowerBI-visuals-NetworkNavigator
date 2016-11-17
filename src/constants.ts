@@ -61,6 +61,14 @@ export const minEdgeWeight = { defaultValue: 0 };
 
 export const maxEdgeWeight = { defaultValue: 100 };
 
-export const edgeWeightStartColor = { defaultValue: "#FDFEFE" };
+export const minEdgeColorWeight = { defaultValue: 0 };
 
-export const edgeWeightEndColor = { defaultValue: "#273746" };
+export const maxEdgeColorWeight = { defaultValue: 100 };
+
+export const edgeStartColor = { defaultValue: "#FDFEFE" };
+
+export const edgeEndColor = { defaultValue: "#273746" };
+
+export const edgeMinWidth = { defaultValue: 1, min: 0, max: 15 };
+
+export const edgeMaxWidth = { defaultValue: 5, min: 1, max: 15 };

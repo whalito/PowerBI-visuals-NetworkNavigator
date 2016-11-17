@@ -352,10 +352,11 @@ export class NetworkNavigator {
                 let s = nodes[link.source];
                 let t = nodes[link.target];
                 let w = link.value;
+                let cw = link.colorValue;
                 let i = {}; // intermediate node
                 nodes.push(<any>i);
                 links.push({ source: s, target: i }, { source: i, target: t });
-                bilinks.push([s, i, t, w]);
+                bilinks.push([s, i, t, w, cw]);
             });
 
             this.force.nodes(nodes).links(links);
@@ -365,21 +366,42 @@ export class NetworkNavigator {
                 this.force.start();
             }
 
-            const edgeWeightDomainStart = this.configuration.minEdgeWeight;
-            const edgeWeightDomainEnd = this.configuration.maxEdgeWeight;
-            const edgeGradientScale = d3.scale.linear()
-                .domain([edgeWeightDomainStart, edgeWeightDomainEnd])
+            const edgeColorWeightDomain = [
+                this.configuration.minEdgeColorWeight,
+                this.configuration.maxEdgeColorWeight,
+            ] as [number, number];
+
+            const edgeWidthDomain = [
+                this.configuration.minEdgeWeight,
+                this.configuration.maxEdgeWeight,
+            ] as [number, number];
+
+            const edgeColorScale = d3.scale.linear()
+                .domain(edgeColorWeightDomain)
                 .interpolate(d3.interpolateRgb as any)
                 .range([
-                    this.configuration.edgeWeightStartColor,
-                    this.configuration.edgeWeightEndColor,
+                    this.configuration.edgeStartColor,
+                    this.configuration.edgeEndColor,
                 ] as any);
 
-            const domainBoundedEdgeValue = (v?: number) => (
-                Math.min(
-                    edgeWeightDomainEnd,
-                    Math.max(edgeWeightDomainStart, v)
-            ));
+            const edgeWidthScale = d3.scale.linear()
+                .domain(edgeWidthDomain)
+                .interpolate(d3.interpolateNumber as any)
+                .range([
+                    this.configuration.minEdgeWidth,
+                    this.configuration.maxEdgeWidth,
+                ]);
+
+            const domainBound = (v: number, domain: [number, number]) => (
+                Math.min(domain[1], Math.max(domain[0], v))
+            );
+
+            const xform = (v: number, scale: Function, domain: [number, number], defaultValue: any) => {
+                const isValuePresent = v !== undefined;
+                return isValuePresent ?
+                    scale(domainBound(v, domain)) :
+                    defaultValue;
+            };
 
             this.vis.append("svg:defs").selectAll("marker")
                 .data(["end"])
@@ -400,14 +422,21 @@ export class NetworkNavigator {
                 .enter().append("line")
                 .attr("class", "link")
                 .style("stroke", function(d: any) {
-                    const edgeValue = d[3];
-                    const isEdgeValuePresent = edgeValue !== undefined;
-                    const result = isEdgeValuePresent ?
-                        edgeGradientScale(domainBoundedEdgeValue(edgeValue)) :
-                        "gray";
-                    return result;
+                    return xform(
+                        d[4],
+                        edgeColorScale,
+                        edgeColorWeightDomain,
+                        "gray"
+                    );
                 })
-                .style("stroke-width", DEFAULT_EDGE_SIZE)
+                .style("stroke-width", function(d: any) {
+                    return xform(
+                        d[3],
+                        edgeWidthScale,
+                        edgeWidthDomain,
+                        DEFAULT_EDGE_SIZE
+                    );
+                })
                 .attr("id", function(d: any) {
                     return d[0].name.replace(/\./g, "_").replace(/@/g, "_") + "_" +
                         d[2].name.replace(/\./g, "_").replace(/@/g, "_");

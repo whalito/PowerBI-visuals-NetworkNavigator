@@ -180,27 +180,81 @@ export default class NetworkNavigatorVisualState extends HasSettings implements 
      */
     @numberSetting({
         category: CAT_LAYOUT,
-        displayName: "Min Edge Weight",
-        description: "The minimum value of the edge weight data",
+        displayName: "Max Edge Weight",
+        description: "The maximum value of the edge weight data",
         defaultValue: constants.maxEdgeWeight.defaultValue,
     })
     public maxEdgeWeight: number = constants.maxEdgeWeight.defaultValue;
 
+    /**
+     * The minimum value for edge color-weights
+     */
+    @numberSetting({
+        category: CAT_LAYOUT,
+        displayName: "Min Edge Color Weight",
+        description: "The minimum value of the edge color weight data",
+        defaultValue: constants.minEdgeWeight.defaultValue,
+    })
+    public minEdgeColorWeight: number = constants.minEdgeWeight.defaultValue;
+
+    /**
+     * The minimum value for edge weights
+     */
+    @numberSetting({
+        category: CAT_LAYOUT,
+        displayName: "Max Edge Color Weight",
+        description: "The maximum value of the edge color weight data",
+        defaultValue: constants.maxEdgeWeight.defaultValue,
+    })
+    public maxEdgeColorWeight: number = constants.maxEdgeWeight.defaultValue;
+
+    /**
+     * The minimum edge width
+     */
+    @numberSetting({
+        category: CAT_LAYOUT,
+        displayName: "Min Edge Width",
+        description: "The minimum edge width to render",
+        min: constants.edgeMinWidth.min,
+        max: constants.edgeMinWidth.max,
+        defaultValue: constants.minEdgeWeight.defaultValue,
+    })
+    public edgeMinWidth: number = constants.edgeMinWidth.defaultValue;
+
+    /**
+     * The maximum edge width
+     */
+    @numberSetting({
+        category: CAT_LAYOUT,
+        displayName: "Max Edge width",
+        description: "The maximum edge width to render",
+        min: constants.edgeMaxWidth.min,
+        max: constants.edgeMaxWidth.max,
+        defaultValue: constants.edgeMaxWidth.defaultValue,
+    })
+    public edgeMaxWidth: number = constants.edgeMaxWidth.defaultValue;
+
+    /**
+     * The starting color for gradient interpolation
+     */
     @colorSetting({
         category: CAT_LAYOUT,
         displayName: "Edge Start Color",
-        description: "Edge Weight Start Color",
-        defaultValue: constants.edgeWeightStartColor.defaultValue,
+        description: "Edge Start Color",
+        defaultValue: constants.edgeStartColor.defaultValue,
     })
-    public edgeWeightStartColor: string = constants.edgeWeightStartColor.defaultValue;
+    public edgeStartColor: string = constants.edgeStartColor.defaultValue;
 
+    /**
+     * The ending color for gradient interpolation
+     */
     @colorSetting({
         category: CAT_LAYOUT,
         displayName: "Edge End Color",
-        description: "Edge Weight End Color",
-        defaultValue: constants.edgeWeightEndColor.defaultValue,
+        description: "Edge End Color",
+        defaultValue: constants.edgeEndColor.defaultValue,
     })
-    public edgeWeightEndColor: string = constants.edgeWeightEndColor.defaultValue;
+    public edgeEndColor: string = constants.edgeEndColor.defaultValue;
 
     /**
      * The current selected node index
