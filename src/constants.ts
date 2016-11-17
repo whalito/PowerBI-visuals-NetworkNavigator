@@ -60,3 +60,7 @@ export const fontSizePT = { min: 6, max: 30, defaultValue: 8 };
 export const minEdgeWeight = { defaultValue: 0 };
 
 export const maxEdgeWeight = { defaultValue: 100 };
+
+export const edgeWeightStartColor = { defaultValue: "#FDFEFE" };
+
+export const edgeWeightEndColor = { defaultValue: "#273746" };

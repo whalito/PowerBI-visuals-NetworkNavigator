@@ -152,4 +152,24 @@ export interface INetworkNavigatorConfiguration {
      * The size of the font to use for the labels, in pt
      */
     fontSizePT?: number;
+
+    /**
+     * The minimum edge weight
+     */
+    minEdgeWeight?: number;
+
+    /**
+     * The maximum edge weight
+     */
+    maxEdgeWeight?: number;
+
+    /**
+     * The edge weight starting color
+     */
+    edgeWeightStartColor?: string;
+
+    /**
+     * The edge weight ending color
+     */
+    edgeWeightEndColor?: string;
 }

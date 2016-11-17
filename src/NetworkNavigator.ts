@@ -255,6 +255,7 @@ export class NetworkNavigator {
         }
 
         this._configuration = newConfig;
+        this.redraw();
     }
 
     /**
@@ -282,6 +283,203 @@ export class NetworkNavigator {
      * Redraws the force network navigator
      */
     public redraw() {
+        if (this.graph) {
+            const graph = this.graph;
+            const me = this;
+
+            this.zoom = d3.behavior.zoom()
+            .scaleExtent([this._configuration.minZoom, this._configuration.maxZoom])
+            .on("zoom", () => {
+                const event = d3.event as d3.ZoomEvent;
+                this.scale = event.scale;
+                this.translate = event.translate;
+                this.redraw();
+                this.events.raiseEvent("zoomed", {
+                    scale: this.scale,
+                    translate: this.translate,
+                });
+            });
+
+            let drag = d3.behavior.drag()
+                .origin(function(d: any) { return <any>d; })
+                // The use of "function" is important to preserve "this"
+                .on("dragstart", function(d: any) {
+
+                    // Stop the force graph animation while we are dragging, otherwise it causes the graph to 
+                    // jitter while you drag it
+                    (<any>d3.event).sourceEvent.stopPropagation();
+                    d3.select(this).classed("dragging", true);
+                    me.force.stop();
+                })
+                .on("drag", function(d: any) {
+                    // While we drag, adjust the dragged node, and tell our node renderer to draw a frame
+                    let evt = <any>d3.event;
+                    d.px = d.x = evt.x;
+                    d.py = d.y = evt.y;
+                    /* tslint:disable */
+                    tick();
+                    /* tslint:enable */
+                })
+                .on("dragend", function(d: any) {
+                    d3.select(this).classed("dragging", false);
+
+                    // If we have animation on, then start that beast
+                    if (me.configuration.animate) {
+                        me.force.resume();
+                    }
+                });
+
+            this.svg.remove();
+
+            this.svg = d3.select(this.svgContainer[0]).append("svg")
+                .attr("width", this.dimensions.width)
+                .attr("height", this.dimensions.height)
+                .attr("preserveAspectRatio", "xMidYMid meet")
+                .attr("pointer-events", "all")
+                .call(this.zoom);
+            this.vis = this.svg.append("svg:g");
+
+            let nodes = graph.nodes.slice();
+            let links: { source: any; target: any; }[] = [];
+            let bilinks: any[] = [];
+
+            graph.links.forEach((link) => {
+                let s = nodes[link.source];
+                let t = nodes[link.target];
+                let w = link.value;
+                let i = {}; // intermediate node
+                nodes.push(<any>i);
+                links.push({ source: s, target: i }, { source: i, target: t });
+                bilinks.push([s, i, t, w]);
+            });
+
+            this.force.nodes(nodes).links(links);
+
+            // If we have animation on, then start that beast
+            if (this.configuration.animate) {
+                this.force.start();
+            }
+
+            const edgeWeightDomainStart = this.configuration.minEdgeWeight;
+            const edgeWeightDomainEnd = this.configuration.maxEdgeWeight;
+            const edgeGradientScale = d3.scale.linear()
+                .domain([edgeWeightDomainStart, edgeWeightDomainEnd])
+                .interpolate(d3.interpolateRgb as any)
+                .range([
+                    this.configuration.edgeWeightStartColor,
+                    this.configuration.edgeWeightEndColor,
+                ] as any);
+
+            const domainBoundedEdgeValue = (v?: number) => (
+                Math.min(
+                    edgeWeightDomainEnd,
+                    Math.max(edgeWeightDomainStart, v)
+            ));
+
+            this.vis.append("svg:defs").selectAll("marker")
+                .data(["end"])
+                .enter()
+                .append("svg:marker")
+                .attr("id", String)
+                .attr("viewBox", "0 -5 10 10")
+                .attr("refX", 15)
+                .attr("refY", 0)
+                .attr("markerWidth", 7)
+                .attr("markerHeight", 7)
+                .attr("orient", "auto")
+                .append("svg:path")
+                .attr("d", "M0,-5L10,0L0,5");
+
+            let link = this.vis.selectAll(".link")
+                .data(bilinks)
+                .enter().append("line")
+                .attr("class", "link")
+                .style("stroke", function(d: any) {
+                    const edgeValue = d[3];
+                    const isEdgeValuePresent = edgeValue !== undefined;
+                    const result = isEdgeValuePresent ?
+                        edgeGradientScale(domainBoundedEdgeValue(edgeValue)) :
+                        "gray";
+                    return result;
+                })
+                .style("stroke-width", DEFAULT_EDGE_SIZE)
+                .attr("id", function(d: any) {
+                    return d[0].name.replace(/\./g, "_").replace(/@/g, "_") + "_" +
+                        d[2].name.replace(/\./g, "_").replace(/@/g, "_");
+                });
+
+            let node = this.vis.selectAll(".node")
+                .data(graph.nodes)
+                .enter().append("g")
+                .call(drag)
+                .attr("class", "node");
+
+            node.append("svg:circle")
+                .attr("r", (d: any) => {
+                    const width = d.value;
+                    /* tslint:disable */
+                    if (typeof width === "undefined" || width === null) {
+                    /* tslint:enable */
+                        return DEFAULT_NODE_SIZE;
+                    }
+                    // Make sure > 0
+                    return width > 0 ? width : 0;
+                })
+                .style("fill", (d: any) => d.color)
+                .style("stroke", "red")
+                .style("stroke-width", (d: any) => d.selected ? 1 : 0);
+
+            node.on("click", (n: INetworkNavigatorNode) => this.onNodeClicked(n));
+
+            node.on("mouseover", () => {
+                /* tslint:disable */
+                d3.select(this.svgContainer.find("svg text")[0]).style("display", null);
+                /* tslint:enable */
+            });
+            node.on("mouseout", () => {
+                if (!this._configuration.labels) {
+                    d3.select(this.svgContainer.find("svg text")[0]).style("display", "none");
+                }
+            });
+
+            link.append("svg:text")
+                .text((d: any) => "yes")
+                .attr("fill", "black")
+                .attr("stroke", "black")
+                .attr("font-size", () => `${this.configuration.fontSizePT}pt`)
+                .attr("stroke-width", "0.5px")
+                .attr("class", "linklabel")
+                .attr("text-anchor", "middle");
+
+            node.append("svg:text")
+                .attr("class", "node-label")
+                .text(function(d: any) { return d.name; })
+                .attr("fill", (d: any) => d.labelColor || this.configuration.defaultLabelColor)
+                .attr("stroke", (d: any) => d.labelColor || this.configuration.defaultLabelColor)
+                .attr("font-size", () => `${this.configuration.fontSizePT}pt`)
+                .attr("stroke-width", "0.5px")
+                /* tslint:disable */
+                .style("display", this._configuration.labels ? null : "none");
+                /* tslint:enable */
+
+            // If we are not animating, then play the force quickly
+            if (!this.configuration.animate) {
+                this.reflow(link, node);
+            }
+
+            // Our tick function, which actually moves the nodes on the svg based on their x/y positions
+            const tick = () => {
+                if (this.configuration.animate) {
+                    link.attr("x1", (d) => d[0].x)
+                        .attr("y1", (d) => d[0].y)
+                        .attr("x2", (d) => d[2].x)
+                        .attr("y2", (d) => d[2].y);
+                    node.attr("transform", (d: any) => `translate(${d.x},${d.y})`);
+                }
+            };
+
+            this.force.on("tick", tick);
+        }
         if (this.vis) {
             this.vis.attr("transform", `translate(${this.translate}) scale(${this.scale})`);
         }
@@ -298,189 +496,8 @@ export class NetworkNavigator {
      * Sets the data for this force graph
      */
     public setData(graph: INetworkNavigatorData<INetworkNavigatorNode>) {
-        let me = this;
         this.graph = graph;
-
-        this.zoom = d3.behavior.zoom()
-            .scaleExtent([this._configuration.minZoom, this._configuration.maxZoom])
-            .on("zoom", () => {
-                const event = d3.event as d3.ZoomEvent;
-                this.scale = event.scale;
-                this.translate = event.translate;
-                this.redraw();
-                this.events.raiseEvent("zoomed", {
-                    scale: this.scale,
-                    translate: this.translate,
-                });
-            });
-
-        let drag = d3.behavior.drag()
-            .origin(function(d: any) { return <any>d; })
-            // The use of "function" is important to preserve "this"
-            .on("dragstart", function(d: any) {
-
-                // Stop the force graph animation while we are dragging, otherwise it causes the graph to 
-                // jitter while you drag it
-                (<any>d3.event).sourceEvent.stopPropagation();
-                d3.select(this).classed("dragging", true);
-                me.force.stop();
-            })
-            .on("drag", function(d: any) {
-                // While we drag, adjust the dragged node, and tell our node renderer to draw a frame
-                let evt = <any>d3.event;
-                d.px = d.x = evt.x;
-                d.py = d.y = evt.y;
-                /* tslint:disable */
-                tick();
-                /* tslint:enable */
-            })
-            .on("dragend", function(d: any) {
-                d3.select(this).classed("dragging", false);
-
-                // If we have animation on, then start that beast
-                if (me.configuration.animate) {
-                    me.force.resume();
-                }
-            });
-
-        this.svg.remove();
-
-        this.svg = d3.select(this.svgContainer[0]).append("svg")
-            .attr("width", this.dimensions.width)
-            .attr("height", this.dimensions.height)
-            .attr("preserveAspectRatio", "xMidYMid meet")
-            .attr("pointer-events", "all")
-            .call(this.zoom);
-        this.vis = this.svg.append("svg:g");
-
-        let nodes = graph.nodes.slice();
-        let links: { source: any; target: any; }[] = [];
-        let bilinks: any[] = [];
-
-        graph.links.forEach((link) => {
-            let s = nodes[link.source];
-            let t = nodes[link.target];
-            let w = link.value;
-            let i = {}; // intermediate node
-            nodes.push(<any>i);
-            links.push({ source: s, target: i }, { source: i, target: t });
-            bilinks.push([s, i, t, w]);
-        });
-
-        this.force.nodes(nodes).links(links);
-
-        // If we have animation on, then start that beast
-        if (this.configuration.animate) {
-            this.force.start();
-        }
-
-        const edgeGradientScale = d3.scale.linear()
-            .domain([0, 10000]) // TODO: Get these from config
-            .interpolate(d3.interpolateRgb as any)
-            .range(["#FDFEFE", "#273746"] as any); // TODO: Get these from config
-
-        this.vis.append("svg:defs").selectAll("marker")
-            .data(["end"])
-            .enter()
-            .append("svg:marker")
-            .attr("id", String)
-            .attr("viewBox", "0 -5 10 10")
-            .attr("refX", 15)
-            .attr("refY", 0)
-            .attr("markerWidth", 7)
-            .attr("markerHeight", 7)
-            .attr("orient", "auto")
-            .append("svg:path")
-            .attr("d", "M0,-5L10,0L0,5");
-
-        let link = this.vis.selectAll(".link")
-            .data(bilinks)
-            .enter().append("line")
-            .attr("class", "link")
-            .style("stroke", function(d: any) {
-                const edgeValue = d[3];
-                const isEdgeValuePresent = edgeValue !== undefined;
-                return isEdgeValuePresent ?
-                    edgeGradientScale(edgeValue) :
-                    "gray";
-            })
-            .style("stroke-width", DEFAULT_EDGE_SIZE)
-            .attr("id", function(d: any) {
-                return d[0].name.replace(/\./g, "_").replace(/@/g, "_") + "_" +
-                    d[2].name.replace(/\./g, "_").replace(/@/g, "_");
-            });
-
-        let node = this.vis.selectAll(".node")
-            .data(graph.nodes)
-            .enter().append("g")
-            .call(drag)
-            .attr("class", "node");
-
-        node.append("svg:circle")
-            .attr("r", (d: any) => {
-                const width = d.value;
-                /* tslint:disable */
-                if (typeof width === "undefined" || width === null) {
-                /* tslint:enable */
-                    return DEFAULT_NODE_SIZE;
-                }
-                // Make sure > 0
-                return width > 0 ? width : 0;
-            })
-            .style("fill", (d: any) => d.color)
-            .style("stroke", "red")
-            .style("stroke-width", (d: any) => d.selected ? 1 : 0);
-
-        node.on("click", (n: INetworkNavigatorNode) => this.onNodeClicked(n));
-
-        node.on("mouseover", () => {
-            /* tslint:disable */
-            d3.select(this.svgContainer.find("svg text")[0]).style("display", null);
-            /* tslint:enable */
-        });
-        node.on("mouseout", () => {
-            if (!this._configuration.labels) {
-                d3.select(this.svgContainer.find("svg text")[0]).style("display", "none");
-            }
-        });
-
-        link.append("svg:text")
-            .text((d: any) => "yes")
-            .attr("fill", "black")
-            .attr("stroke", "black")
-            .attr("font-size", () => `${this.configuration.fontSizePT}pt`)
-            .attr("stroke-width", "0.5px")
-            .attr("class", "linklabel")
-            .attr("text-anchor", "middle");
-
-        node.append("svg:text")
-            .attr("class", "node-label")
-            .text(function(d: any) { return d.name; })
-            .attr("fill", (d: any) => d.labelColor || this.configuration.defaultLabelColor)
-            .attr("stroke", (d: any) => d.labelColor || this.configuration.defaultLabelColor)
-            .attr("font-size", () => `${this.configuration.fontSizePT}pt`)
-            .attr("stroke-width", "0.5px")
-            /* tslint:disable */
-            .style("display", this._configuration.labels ? null : "none");
-            /* tslint:enable */
-
-        // If we are not animating, then play the force quickly
-        if (!this.configuration.animate) {
-            this.reflow(link, node);
-        }
-
-        // Our tick function, which actually moves the nodes on the svg based on their x/y positions
-        const tick = () => {
-            if (this.configuration.animate) {
-                link.attr("x1", (d) => d[0].x)
-                    .attr("y1", (d) => d[0].y)
-                    .attr("x2", (d) => d[2].x)
-                    .attr("y2", (d) => d[2].y);
-                node.attr("transform", (d: any) => `translate(${d.x},${d.y})`);
-            }
-        };
-
-        this.force.on("tick", tick);
+        this.redraw();
     }
 
     /**
